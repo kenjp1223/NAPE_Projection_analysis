@@ -19,6 +19,8 @@ atlas_mri   : Image file containing MRI image for the atlas
 
 3. Axon segmentation
 Axon segmentation will be performed using TRAILMAP. TRAILMAP will be used to generate a probability map of axons in the raw image space. ILASTIK is also useful to generate this map. An idea is to dig up the Clearmap 1.0 function for ilastik. 
+TRAILMAP will be running on a custom container constructed based on docker:tensorflow/tensorflow:2.4.0-custom-op-gpu-ubuntu16. This was tested on NVIDIA a100, on Hyak HPC.
+
 Example of command to run ilastik on the command line.
 $IlastikBinary --headless --project=$project $iloutputpath $ilinputpath
 The probability will be used to calculate a weighted mask of axons. This can be furtherused to determine a threshold, create a mask, and extract intensity/area of axons. The segmented masks and the weighted axon images will be written on the drive.
