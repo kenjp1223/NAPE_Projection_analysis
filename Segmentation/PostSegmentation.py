@@ -4,11 +4,13 @@
 
 import os
 import cc3d
-import tensorflow as tf
+#import tensorflow as tf
 import numpy as np
 import tifffile
+import time
 from PIL import Image
-from skimage.morphology import skeletonize
+import scipy
+from skimage.morphology import skeletonize, ball
 
 def thresholding(input_folder, output_folder, threshold=0.5, multi_thresholds=None):
     for filename in sorted(os.listdir(input_folder)):
@@ -26,7 +28,7 @@ def thresholding(input_folder, output_folder, threshold=0.5, multi_thresholds=No
                 dimg += tf.cast(img > t, tf.uint8) * int(t * 10)
 
         # Write result
-        tifffile.imwrite(os.path.join(output_folder, filename), dimg.numpy())
+        tifffile.imwrite(os.path.join(output_folder, filename), dimg.numpy(),compression ='zlib')
 
 def read_tiff_stack(path, zslice=None):
     if os.path.isdir(path):
@@ -53,40 +55,42 @@ def get_stack_size(path):
         return timg.shape    
 
 def thinned_component(base, vol, zwindow=250, zslice=None):    
-    stack = read_tiff_stack(base, zslice=zslice)
+    stack = read_tiff_stack(outputfolder, zslice=zslice)
+    #plt.imshow(np.max(stack, axis = 0))
     print("Data shape", stack.shape)
+    print("Data max",np.max(stack))
+    # Create labels for connected components
     labels = cc3d.connected_components(stack)
+    # Identify unique labels and count
+    unique_labels, label_counts = np.unique(labels, return_counts=True)
 
-    shapes = labels.shape
-    labels = labels.flatten()
-    mark = [0] * (labels.max() + 1)
-    for i in labels:
-        mark[i] += 1
-    for k in range(len(labels)):
-        if mark[labels[k]] < vol:
-            labels[k] = 0
-    labels[labels > 0] = 255
+    # Remove labels that are under x connectivitiy
+    labels_to_remove = unique_labels[label_counts < vol]
+    #mask = np.isin(labels, labels_to_remove)
+    labels[np.isin(labels, labels_to_remove)] = 0
+    labels[labels>0] = 255
+    labels = labels.astype('uint8')
+    
+    return labels
+    
 
-    return labels.reshape(shapes)
-
-def skeleton_batch(base, target, device, connectives=10, zslice=None):
+def skeleton_batch(base, target, connectives=10, zslice=None,ballsize = 1):
     # Clear junks，removing 3D connectives with voxel number 10 by default.
     labels = thinned_component(base, connectives, zslice=zslice)
     print("Data will be saved in", target)
     # Do skeleton
+    if not tlabels.dtype == 'uint8':
+        #print('yes')
+        labels = labels.astype('uint8')
     skeleton = skeletonize(labels)
-    
-    # Do dilation
-    x = tf.constant(skeleton.reshape(1, *skeleton.shape, 1), dtype=tf.float32)
-    p1 = tf.nn.max_pool3d(x, (1, 3, 3, 1), (1, 1, 1, 1), 'VALID')
-    p2 = tf.nn.max_pool3d(x, (3, 1, 3, 1), (1, 1, 1, 1), 'VALID')
-    p3 = tf.nn.max_pool3d(x, (3, 3, 1, 1), (1, 1, 1, 1), 'VALID')
-    min_pool_x = tf.math.reduce_min(tf.concat([p1, p2, p3], axis=-1), axis=-1)
-    x = tf.math.reduce_max(tf.concat([p1, p2, p3], axis=-1), axis=-1)
-    x = tf.where(x > 0, 255, 0)
 
-    tifffile.imsave(target, x.numpy().astype(np.uint8))
+    # Do dilation
+    # specify the size of the ball
+    skeleton = scipy.ndimage.binary_dilation(skeleton, ball(ballsize))
+
+    tifffile.imsave(target, skeleton.astype(np.uint8),compression ='zlib')
     print('Done.')
+
 
 
 
@@ -104,9 +108,7 @@ if __name__ == "__main__":
     #threshold = 0.5
     multi_thresholds = [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-    print("GPU available?",torch.cuda.is_available());
-    print("Thresholding the axon probability by ", threshold);
+    print("Thresholding the axon probability");
     print("Processing images in",outputfolder);
     if not os.path.exists(outputfolder):
         os.mkdir(outputfolder)
@@ -122,7 +124,7 @@ if __name__ == "__main__":
         zslice = slice(zstart,zstart+zwindow)
         print("Start processing from",zstart)
         #img = read_tiff_stack(outputfolder,zslice = zslice)
-        labels = thined_component(outputfolder, 10,zslice = zslice)
+        labels = thinned_component(outputfolder, 10,zslice = zslice)
         skeleton_batch(outputfolder, imgfolder.replace(fname,fname + f'_skelton_{idx+1}.tif'), device,
         connectives=10,zslice = zslice)
 
