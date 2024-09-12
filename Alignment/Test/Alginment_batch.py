@@ -5,6 +5,7 @@ import numpy as np
 import os
 import tifffile
 import shutil
+import time
 
 # Set the input path for the moving and fixed images.
 # The moving image will typically be the autofluorescence images
@@ -55,21 +56,41 @@ def ants_transformation(fixp,movp,transformationpath,outputpath,fnamekey,transfo
                         os.path.join(transformationpath,f'{transform_key}.nii.gz')]
 
 
-
     # apply the transformation
     transformed_img = ants.apply_transforms( fixed=fix, moving=mov,transformlist=transforms )
     transformed_img.to_file(os.path.join(outputpath,f'{fnamekey}_transformed.tif'))
 
 
 if __name__ == '__main__':
-    # inputs
-    outputpath = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ\20240813_13_40_51_NAcPRJ_m2126_2_Destripe_DONE'
-    movp = os.path.join(outputpath,'resampled_Ex_561_Ch1_stitched_Left.tif')
+    start = time.time()
+
+    #print("Hello, World!")
+    # input folder
+    #imgfolder = input("Where is the probability images...")
+    rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ'
+    metafile = pd.read_csv(r"\\10.159.50.7\LabCommon\Ken\data\NAc_PRJ\meta\NAcPRJ_meta.csv",)
+
+    # set the atlas you want to annotate on to
     fixp = r"\\10.159.50.7\Analysis2\Ken\ClearMap\clearmap_ressources_mouse_brain\ClearMap_ressources\Regions_annotations\Kim_HR\Kim_ref_adult_v1_brain_HR_Right.tif"
-
-    # outputs
-    transformationpath = os.path.join(outputpath,'auto_to_atlas_transformation')
     key = 'auto_to_atlas' # Key string to label files.
+    ch_key = 'Ex_561_Ch1_stitched'
 
-    ants_initial_alignment(fixp,movp,outputpath,key)
-    ants_transformation(fixp,movp,transformationpath,outputpath,key,transform_key = 'fwdtransforms')
+    for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f]:
+        outputpath = os.path.join(rootimgfolder, imgfname)
+    
+        findex = int(imgfname.split('_')[6])
+        Analysis_hemi,FinalOrientation = metafile.loc[metafile.fname == imgfname,['Analysis_hemi','FinalOrientation']].values[0]
+        print(Analysis_hemi,FinalOrientation)
+
+        image_key = f"{ch_key}_{Analysis_hemi}"
+
+        movp = os.path.join(outputpath,f'resampled_{image_key}.tif')
+
+        # outputs
+        transformationpath = os.path.join(outputpath,f'{key}_transformation')
+
+        # start alignemnt
+        ants_initial_alignment(fixp,movp,outputpath,key)
+
+        # apply transformation
+        ants_transformation(fixp,movp,transformationpath,outputpath,key,transform_key = 'fwdtransforms')

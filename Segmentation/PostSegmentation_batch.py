@@ -277,76 +277,86 @@ if __name__ == "__main__":
     #print("Hello, World!")
     # input folder
     #imgfolder = input("Where is the probability images...")
-    imgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ\20240813_13_40_51_NAcPRJ_m2126_2_Destripe_DONE\seg-Ex_488_Ch0_stitched_Left'
-    fname = os.path.basename(imgfolder)
-    outputfolder = imgfolder.replace(fname,fname + '_thresholded')
-    # sequential
-    processing_key = 'Sequential' # or 'Parallel' or 'Sequential'
-    zwindow = 50
-    #threshold = 0.5
-    threshold = None
-    multi_thresholds = [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+    rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ'
+    for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f]:
+        findex = int(imgfname.split('_')[6])
+        print(findex)
+        if findex == 2:
+            continue
+        if findex % 2 == 1:
+            fname = 'seg-Ex_488_Ch0_stitched_Right'
+        elif findex % 2 == 0:
+            fname = 'seg-Ex_488_Ch0_stitched_Left'
+        imgfolder = os.path.join(rootimgfolder,imgfname,fname)
+        #fname = os.path.basename(imgfolder)
+        outputfolder = imgfolder.replace(fname,fname + '_thresholded')
+        # sequential
+        processing_key = 'Sequential' # or 'Parallel' or 'Sequential'
+        zwindow = 50
+        #threshold = 0.5
+        threshold = None
+        multi_thresholds = [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 
-    print("Thresholding the axon probability");
-    print("Processing images in",outputfolder);
-    if not os.path.exists(outputfolder):
-        os.mkdir(outputfolder)
+        print("Thresholding the axon probability");
+        print("Processing images in",outputfolder);
+        if not os.path.exists(outputfolder):
+            os.mkdir(outputfolder)
 
-        # save the thresholded images
-    if processing_key =='Parallel':
-        thresholding_parameters = {}
-        thresholding_parameters['outputfolder'] = outputfolder
-        thresholding_parameters['threshold'] = threshold
-        thresholding_parameters['multi_thresholds'] = multi_thresholds
+            # save the thresholded images
+        if processing_key =='Parallel':
+            thresholding_parameters = {}
+            thresholding_parameters['outputfolder'] = outputfolder
+            thresholding_parameters['threshold'] = threshold
+            thresholding_parameters['multi_thresholds'] = multi_thresholds
 
-        logging.debug("Starting thresholding")
-        num_cores = multiprocessing.cpu_count()
-        print("num_cores: %d" % num_cores)
-        imagefiles = [os.path.join(imgfolder,p) for p in sorted(os.listdir(imgfolder)) if p.endswith('.tif')]
-        with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
-            # Use functools.partial to pass the constant variable to my_function
-            partial_function = partial(thresholding_parallel, thresholding_parameters=thresholding_parameters)
-            resample_imgs = pool.map(partial_function, imagefiles)
+            logging.debug("Starting thresholding")
+            num_cores = multiprocessing.cpu_count()
+            print("num_cores: %d" % num_cores)
+            imagefiles = [os.path.join(imgfolder,p) for p in sorted(os.listdir(imgfolder)) if p.endswith('.tif')]
+            with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
+                # Use functools.partial to pass the constant variable to my_function
+                partial_function = partial(thresholding_parallel, thresholding_parameters=thresholding_parameters)
+                resample_imgs = pool.map(partial_function, imagefiles)
 
-    else:
-        thresholding(imgfolder,outputfolder,multi_thresholds = multi_thresholds)
+        else:
+            thresholding(imgfolder,outputfolder,multi_thresholds = multi_thresholds)
 
-    print("skeletonizing the axon")
+        print("skeletonizing the axon")
 
-    imglist = [os.path.join(outputfolder,f) for f in sorted(os.listdir(outputfolder)) if '.tif' in f]
-    z = len(imglist)
-    print(imgfolder.replace(fname,fname + f'_skeleton.tif'))
+        imglist = [os.path.join(outputfolder,f) for f in sorted(os.listdir(outputfolder)) if '.tif' in f]
+        z = len(imglist)
+        print(imgfolder.replace(fname,fname + f'_skeleton.tif'))
 
-    if processing_key == 'Sequential':
-        for idx,zstart in enumerate(np.arange(0,z,step = zwindow)):
-            zslice = slice(zstart,zstart+zwindow)
-            print("Start processing from",zstart)
-            #img = read_tiff_stack(outputfolder,zslice = zslice)
-            skeleton_batch(outputfolder, imgfolder.replace(fname,fname + '_skeleton'),
-            connectives=10,zslice = zslice)
-    elif processing_key == 'Parallel':
-        batch_parameters = {}
-        batch_parameters['target'] = imgfolder
-        batch_parameters['connectives'] = 10
-        batch_parameters['base'] = outputfolder
-        batch_parameters['ballsize'] = 1
+        if processing_key == 'Sequential':
+            for idx,zstart in enumerate(np.arange(0,z,step = zwindow)):
+                zslice = slice(zstart,zstart+zwindow)
+                print("Start processing from",zstart)
+                #img = read_tiff_stack(outputfolder,zslice = zslice)
+                skeleton_batch(outputfolder, imgfolder.replace(fname,fname + '_skeleton'),
+                connectives=10,zslice = zslice)
+        elif processing_key == 'Parallel':
+            batch_parameters = {}
+            batch_parameters['target'] = imgfolder
+            batch_parameters['connectives'] = 10
+            batch_parameters['base'] = outputfolder
+            batch_parameters['ballsize'] = 1
 
-        zslices = []
-        for idx,zstart in enumerate(np.arange(0,z,step = zwindow)):
-            zslice = slice(zstart,zstart+zwindow)
-            zslices.append(zslice)
-        
-        # Skeletonizing core function
-        logging.debug("Starting Skeletonizing")
-        num_cores = multiprocessing.cpu_count()
-        print("num_cores: %d" % num_cores)
-        with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
-            # Use functools.partial to pass the constant variable to my_function
-            partial_function = partial(skeleton_batch_parallel, batch_parameters=batch_parameters)
+            zslices = []
+            for idx,zstart in enumerate(np.arange(0,z,step = zwindow)):
+                zslice = slice(zstart,zstart+zwindow)
+                zslices.append(zslice)
+            
+            # Skeletonizing core function
+            logging.debug("Starting Skeletonizing")
+            num_cores = multiprocessing.cpu_count()
+            print("num_cores: %d" % num_cores)
+            with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
+                # Use functools.partial to pass the constant variable to my_function
+                partial_function = partial(skeleton_batch_parallel, batch_parameters=batch_parameters)
 
-            resample_imgs = pool.map(partial_function, zslices)
-    else:
-        skeleton_batch(outputfolder, imgfolder.replace(fname,fname + f'_skeleton') ,
-            connectives=10,)
-    end = time.time()
-    print("The entire process ended in ",end - start)#
+                resample_imgs = pool.map(partial_function, zslices)
+        else:
+            skeleton_batch(outputfolder, imgfolder.replace(fname,fname + f'_skeleton') ,
+                connectives=5,)
+        end = time.time()
+        print("The entire process ended in ",end - start)#

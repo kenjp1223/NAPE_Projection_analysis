@@ -9,6 +9,7 @@ import tifffile
 import cv2
 from functools import partial
 import shutil
+import pandas as pd
 
 #basepath = r"\\10.159.50.7\analysis2\Ken\LSMS\LS_NTS\LS_NTS_F3B\Ex_639_Em_690_stitched"
 # orientation
@@ -192,46 +193,59 @@ def resample_parallel_processing(rootpath,image_key,sample_parameters):
 
 
 if __name__ == '__main__':
-    # where is the data
-    rootpath = r"\\10.158.246.229\DataCommon\SmartSPIM2\Ken\Dat-Ai14"
-    image_key = "Ex_561_Em_600_stitched"
-    # outputpath for oriented image
-    resampled_outputpath = os.path.join(rootpath,f"resampled_{image_key}.tif")
+    start = time.time()
 
-    # The path to the images that requires resampling
-    basepath = os.path.join(rootpath,image_key)
-    sample_parameters = {}
-    sample_parameters['target_orientation'] = (1,3,-2)
-    sample_parameters['raw_resolution']  = (4,4,4)
-    sample_parameters['target_resolution'] = (5,5,50)
-    sample_parameters['outputpath'] = resampled_outputpath
-    
-    # Get list of files to process
-    file_list = [os.path.join(basepath,f) for f in sorted(os.listdir(basepath)) if '.tif' in f]
-    print(len(file_list)) #for debug
-    # extract the orientation parameters
-    #orientation_parameters(target_orientation)
-    #downsample_parameters(raw_resolution,target_resolution,target_orientation)
+    #print("Hello, World!")
+    # input folder
+    #imgfolder = input("Where is the probability images...")
+    rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ'
+    metafile = pd.read_csv(r"\\10.159.50.7\LabCommon\Ken\data\NAc_PRJ\meta\NAcPRJ_meta.csv",)
+    for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f]:
+        rootpath = os.path.join(rootimgfolder, imgfname)
+        findex = int(imgfname.split('_')[6])
+        Analysis_hemi,FinalOrientation = metafile.loc[metafile.fname == imgfname,['Analysis_hemi','FinalOrientation']].values[0]
+        print(Analysis_hemi,FinalOrientation)
 
-    # resampling core function
-    logging.debug("Starting XY resampling")
-    num_cores = multiprocessing.cpu_count()
-    print("num_cores: %d" % num_cores)
-    with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
-        # Use functools.partial to pass the constant variable to my_function
-        partial_function = partial(process_XY, sample_parameters=sample_parameters)
+        image_key = f"Ex_561_Ch1_stitched_{Analysis_hemi}"
 
-        resample_imgs = pool.map(partial_function, file_list)
-    #print(resample_imgs)
-    resample_imgs = np.array(resample_imgs)
-    #tifffile.imsave(resampled_outputpath.replace('.tif','_test.tif'),np.array(resample_imgs))
-    logging.debug("The XY resampling has ended")
+        
+        # outputpath for oriented image
+        resampled_outputpath = os.path.join(rootpath,f"resampled_{image_key}.tif")
+
+        # The path to the images that requires resampling
+        basepath = os.path.join(rootpath,image_key)
+        sample_parameters = {}
+        sample_parameters['target_orientation'] = eval(FinalOrientation)
+        sample_parameters['raw_resolution']  = (1.8,1.8,4)
+        sample_parameters['target_resolution'] = (5,5,50)
+        sample_parameters['outputpath'] = resampled_outputpath
+        
+        # Get list of files to process
+        file_list = [os.path.join(basepath,f) for f in sorted(os.listdir(basepath)) if '.tif' in f]
+        print(len(file_list)) #for debug
+        # extract the orientation parameters
+        #orientation_parameters(target_orientation)
+        #downsample_parameters(raw_resolution,target_resolution,target_orientation)
+
+        # resampling core function
+        logging.debug("Starting XY resampling")
+        num_cores = multiprocessing.cpu_count()
+        print("num_cores: %d" % num_cores)
+        with multiprocessing.Pool(processes=num_cores) as pool:  # Added `with` statement
+            # Use functools.partial to pass the constant variable to my_function
+            partial_function = partial(process_XY, sample_parameters=sample_parameters)
+
+            resample_imgs = pool.map(partial_function, file_list)
+        #print(resample_imgs)
+        resample_imgs = np.array(resample_imgs)
+        #tifffile.imsave(resampled_outputpath.replace('.tif','_test.tif'),np.array(resample_imgs))
+        logging.debug("The XY resampling has ended")
 
 
-    logging.debug("Starting Z resampling")
-    process_Z(resample_imgs,sample_parameters)
-    logging.debug("Finished resampling")  
-    #os.rmdir(tmp_folder)
-    #shutil.rmtree(tmp_folder, ignore_errors=True)
-    #resample_img = np.array([f[:,:] for f in resample_imgs])
+        logging.debug("Starting Z resampling")
+        process_Z(resample_imgs,sample_parameters)
+        logging.debug("Finished resampling")  
+        #os.rmdir(tmp_folder)
+        #shutil.rmtree(tmp_folder, ignore_errors=True)
+        #resample_img = np.array([f[:,:] for f in resample_imgs])
     
