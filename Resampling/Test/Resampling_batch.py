@@ -198,15 +198,15 @@ if __name__ == '__main__':
     #print("Hello, World!")
     # input folder
     #imgfolder = input("Where is the probability images...")
-    rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ'
-    metafile = pd.read_csv(r"\\10.159.50.7\LabCommon\Ken\data\NAc_PRJ\meta\NAcPRJ_meta.csv",)
+    rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_RV'
+    metafile = pd.read_csv(r"\\10.159.50.7\LabCommon\Ken\data\NAc_RV\meta\NAcRV_meta.csv",)
     for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f]:
         rootpath = os.path.join(rootimgfolder, imgfname)
-        findex = int(imgfname.split('_')[6])
         Analysis_hemi,FinalOrientation = metafile.loc[metafile.fname == imgfname,['Analysis_hemi','FinalOrientation']].values[0]
-        print(Analysis_hemi,FinalOrientation)
+        print(imgfname,Analysis_hemi,FinalOrientation)
 
-        image_key = f"Ex_561_Ch1_stitched_{Analysis_hemi}"
+        #image_key = f"Ex_561_Ch1_stitched"
+        image_key = f"Ex_488_Ch0_stitched"
 
         
         # outputpath for oriented image
@@ -216,7 +216,7 @@ if __name__ == '__main__':
         basepath = os.path.join(rootpath,image_key)
         sample_parameters = {}
         sample_parameters['target_orientation'] = eval(FinalOrientation)
-        sample_parameters['raw_resolution']  = (1.8,1.8,4)
+        sample_parameters['raw_resolution']  = (4,4,4)
         sample_parameters['target_resolution'] = (5,5,50)
         sample_parameters['outputpath'] = resampled_outputpath
         

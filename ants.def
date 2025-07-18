@@ -1,0 +1,17 @@
+Bootstrap: docker
+From: python:latest
+
+%environment
+    export PYTHONPATH=$PYTHONPATH:/NAPE_Projection_analysis
+
+%post
+	apt update
+	apt install -y git
+	apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 libgl1
+	apt install -y python3-pip
+    git clone https://github.com/kenjp1223/NAPE_Projection_analysis.git
+    cd /NAPE_Projection_analysis
+	pip3 install --upgrade pip
+    pip3 install antspyx numpy tifffile opencv-python pandas
+
+    unset DEBIAN_FRONTEND

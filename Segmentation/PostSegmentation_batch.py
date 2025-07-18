@@ -278,7 +278,7 @@ if __name__ == "__main__":
     # input folder
     #imgfolder = input("Where is the probability images...")
     rootimgfolder = r'\\10.158.246.229\DataCommon\SmartSPIM2\Ken\NAc_PRJ'
-    for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f]:
+    for imgfname in [f for f in os.listdir(rootimgfolder) if '_DONE' in f][-2:]:
         findex = int(imgfname.split('_')[6])
         print(findex)
         if findex == 2:

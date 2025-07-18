@@ -193,8 +193,8 @@ def resample_parallel_processing(rootpath,image_key,sample_parameters):
 
 if __name__ == '__main__':
     # where is the data
-    rootpath = r"\\10.158.246.229\DataCommon\SmartSPIM2\Ken\Dat-Ai14"
-    image_key = "Ex_561_Em_600_stitched"
+    rootpath = r"\\10.159.50.7\Analysis2\Ken\LSMS\090122_LC_MPOA_TRAP\crop_data\20240130_17_13_07_FosTRAP_m2043_Destripe_DONE"
+    image_key = "Ex_488_Ch0_stitched_ds"
     # outputpath for oriented image
     resampled_outputpath = os.path.join(rootpath,f"resampled_{image_key}.tif")
 
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     basepath = os.path.join(rootpath,image_key)
     sample_parameters = {}
     sample_parameters['target_orientation'] = (1,3,-2)
-    sample_parameters['raw_resolution']  = (4,4,4)
+    sample_parameters['raw_resolution']  = (3.6,3.6,4)
     sample_parameters['target_resolution'] = (5,5,50)
     sample_parameters['outputpath'] = resampled_outputpath
     
