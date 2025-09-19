@@ -20,7 +20,8 @@ def ants_initial_alignment(fixp,movp,outputpath,key = 'auto_to_atlas',type_of_tr
     # Run ANTS alignment
     #Currently this is the most accurate. It is slow
     #type_of_transform = 'ElasticSyN' # ElasticSyN is accurate and slightly faster.
-    mytx = ants.registration(fixed=fix, moving=mov, type_of_transform = type_of_transform )
+    mytx = ants.registration(fixed=fix, moving=mov, type_of_transform = type_of_transform,flow_sigma = 5,
+                             aff_smoothing_sigmas = (2,1,1,0),aff_shrink_factors= (4,2,1,1))
 
     # Transform moving image for inspection
     #warpedimg = ants.apply_transforms( fixed=fix, moving=mov,transformlist=mytx['fwdtransforms'] )
@@ -42,7 +43,8 @@ def ants_initial_alignment(fixp,movp,outputpath,key = 'auto_to_atlas',type_of_tr
             #print(mytx[T][idx],name,T)
             shutil.copy(mytx[T][idx], os.path.join(transformationpath,name))
 
-def ants_transformation(fixp,movp,transformationpath,outputpath,fnamekey,transform_key = 'fwdtransforms'):
+def ants_transformation(fixp,movp,transformationpath,outputpath,fnamekey,\
+                        transform_key = 'fwdtransforms',interpolator = 'linear'):
     # Read the images into ants format
     fix = ants.image_read(fixp)
     mov = ants.image_read(movp)
@@ -58,24 +60,26 @@ def ants_transformation(fixp,movp,transformationpath,outputpath,fnamekey,transfo
 
 
     # apply the transformation
-    transformed_img = ants.apply_transforms( fixed=fix, moving=mov,transformlist=transforms )
+    transformed_img = ants.apply_transforms( fixed=fix, moving=mov,transformlist=transforms,\
+                                            interpolator = interpolator)
     transformed_img.to_file(os.path.join(outputpath,f'{fnamekey}_transformed.tif'))
 
 
 if __name__ == '__main__':
     # inputs
-    outputpath = r"\\10.158.246.229\DataCommon\SmartSPIM2\Ken\MS_TRAPCeA\20250707_15_18_11_MS_CeA_m1732_Destripe_DONE"
+    outputpath = r"\\10.158.246.229\DataCommon\SmartSPIM2\Ken\MS_TRAPCeA\20250709_11_08_28_MS_CeA_m1737_Destripe_DONE"
     subset_key = ''
     fname = 'autofluo_resampled' + subset_key
-    sname = 'Ex_639_Ch2_stitched_resampled' + subset_key
+    sname = 'binarized-seg-Ex_639_Ch2_stitched_resampled' + subset_key
     movp = os.path.join(outputpath,f'{fname}.tif')
     sigp = os.path.join(outputpath,f'{sname}.tif')
     fixp = r"\\10.159.50.7\Analysis2\Ken\ClearMap\clearmap_ressources_mouse_brain\ClearMap_ressources\Regions_annotations\Allen_templates\average_template_10_coronal.tif"
 
     # outputs
-    transformationpath = os.path.join(outputpath,f'auto_to_atlas{subset_key}_rotated_transformation')
+    transformationpath = os.path.join(outputpath,f'auto_to_atlas{subset_key}_transformation')
     key = 'auto_to_atlas' + subset_key # Key string to label files.
 
-    ants_initial_alignment(movp,fixp,outputpath,key,type_of_transform = 'antsRegistrationSyN[s]')
+    ants_initial_alignment(movp,fixp,outputpath,key,type_of_transform = 'ElasticSyN')
     ants_transformation(fixp,movp,transformationpath,outputpath,f'{fname}_auto_to_atlas_rotated',transform_key = 'invtransforms')
-    ants_transformation(fixp,sigp,transformationpath,outputpath,f'{sname}_signal_to_atlas_rotated',transform_key = 'invtransforms')
+    # if the signal channel is a binary image, use the nearestNeighbor interpolator
+    ants_transformation(fixp,sigp,transformationpath,outputpath,f'{sname}_signal_to_atlas_rotated',transform_key = 'invtransforms',interpolator = 'nearestNeighbor')
